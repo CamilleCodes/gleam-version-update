@@ -1,104 +1,108 @@
 #!/usr/bin/env bash
 
-# This script is used to update the version of the gleam.
-# It downloads the latest version of gleam from the github repository
+# This script is used to update the installed version of Gleam.
+# It downloads the latest version of Gleam from the GitHub repository
 # and installs it in the system, replacing the old version.
-# the old version of gleam is renamed to gleam-version.bak
-# It also checks the sha512 checksum of the downloaded file
+# The old version of Gleam is renamed to gleam-version.bak.
+# It also checks the sha512 checksum of the downloaded file.
 
-# test for location of the presence of gleam
-# if it is not found, then exit with an error message
+# Check for the presence of Gleam.
+# If it is not found, then exit with an error message.
 if ! command -v gleam >/dev/null 2>&1; then
     echo "gleam command could not be found"
     exit 1
 fi
 
-# get the location of the gleam
+# Get the location of Gleam
 gleam_bin=$(command -v gleam)
 
-# get the version of the gleam
+# Get the version of Gleam
 gleam_version=$($gleam_bin --version | cut -d ' ' -f 2)
 
-# set the gleam_bin_dir variable to the parent directory of gleam
+# Set the gleam_bin_dir variable to the parent directory of Gleam
 gleam_bin_dir=$(dirname $gleam_bin)
 
-echo "Checking for gleam updates... ⭐"
+echo "Checking for Gleam updates... ⭐"
 
-# download the info about latest version of gleam from the github api
+# Download the info for the latest version of Gleam from the GitHub API
 release_info=$(curl -s https://api.github.com/repos/gleam-lang/gleam/releases/latest)
 release_version=$(echo "$release_info" |
     grep tag_name |
     cut -d '"' -f 4 |
     tr -d 'v')
 
-echo "Current version of gleam is $gleam_version"
-echo "Latest version of gleam is $release_version"
+echo "Current version of Gleam is $gleam_version"
+echo "Latest version of Gleam is $release_version"
 
-# check if the release version is the same as the current version
+# Check if the release version is the same as the current version
 if [ "$gleam_version" = "$release_version" ]; then
-    echo -e "\ngleam is already up to date!"
+    echo -e "\nGleam is already up to date!"
     exit 0
 fi
 
 chip='x86_64'
 os='linux'
 
-# get the download url of the latest version of gleam
-release_urls=$(echo "$release_info" |
+# Get the download URL of the latest version of Gleam
+release_url=$(echo "$release_info" |
     grep browser_download_url |
     cut -d '"' -f 4 |
-    grep "${chip}.*${os}.*tar\.gz")
+    grep "${chip}.*${os}.*tar\.gz$")
 
-# split the urls on new line into 3 strings and store each in a variable, using here-string syntax
-read -r release_url sha256_url sha512_url <<<"$(echo $release_urls)"
+# Get the SHA512 checksum URL of the latest version of Gleam
+sha512_url=$(echo "$release_info" |
+    grep browser_download_url |
+    cut -d '"' -f 4 |
+    grep "${chip}.*${os}.*tar\.gz.sha512$")
 
-echo -e "\nDownloading gleam version $release_version from\n$release_url"
 
-# given a url store the filename in a variable
+echo -e "\nDownloading Gleam version $release_version from\n$release_url"
+
+# Store the filename from the URL in a variable
 release_filename=$(basename $release_url)
 sha512_filename=$(basename $sha512_url)
 
-# download the latest version of gleam
-wget -q $release_url -O $release_filename
+# Download the latest version of Gleam
+wget -q --show-progress $release_url -O $release_filename
 
-# download the sha512 checksum of the downloaded file
-echo -e "\nDownloading sha512 checksum from\n$sha512_url"
-wget -q $sha512_url -O $sha512_filename
+# Download the SHA12 checksum of the downloaded file
+echo -e "\nDownloading SHA512 checksum from\n$sha512_url"
+wget -q --show-progress $sha512_url -O $sha512_filename
 
-# calculate the sha512 checksum of the downloaded file
+# Calculate the SHA512 checksum of the downloaded file
 calculated_checksum=$(sha512sum $release_filename | cut -d ' ' -f 1)
 expected_checksum=$(cat $sha512_filename | cut -d ' ' -f 1)
 
-# check if the checksums match
+# Check if the checksums match
 if [ "$calculated_checksum" != "$expected_checksum" ]; then
-    echo "\nChecksums do not match"
+    echo "\nChecksums do not match!"
     exit 1
 fi
 
-# extract the downloaded file
+# Extract the downloaded file
 tar -xzf $release_filename
 
-# check if the extracted file is executable
+# Check if the extracted file is executable
 if [ ! -x gleam ]; then
     chmod +x gleam
 fi
 
-# # rename the old version of gleam to gleam.bak
+# Rename the old version of Gleam to gleam.bak
 mv $gleam_bin $gleam_bin-v$gleam_version.bak
 
-# # move the extracted gleam binary to the gleam_bin_dir
+# Move the extracted Gleam binary to the gleam_bin_dir
 mv gleam $gleam_bin_dir
 
-# remove the downloaded files
+# Remove the downloaded files
 rm $release_filename $sha512_filename
 
-# get the version of the gleam
-new_gleam_vesion=$($gleam_bin --version | cut -d ' ' -f 2)
+# Get the version of Gleam
+new_gleam_version=$($gleam_bin --version | cut -d ' ' -f 2)
 
-# check if the new version of gleam is the same as the release version
-if [ "$new_gleam_vesion" != "$release_version" ]; then
-    echo -e "\ngleam was not updated successfully"
+# Check if the new version of Gleam is the same as the release version
+if [ "$new_gleam_version" != "$release_version" ]; then
+    echo -e "\nGleam was not updated successfully >.<"
     exit 1
 fi
 
-echo -e "\ngleam updated to version $release_version"
+echo -e "\nGleam updated to version $release_version 🎉"
